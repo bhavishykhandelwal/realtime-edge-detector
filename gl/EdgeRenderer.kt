@@ -34,7 +34,6 @@ class EdgeRenderer : GLSurfaceView.Renderer {
     private var width: Int = 0
     private var height: Int = 0
     
-    // 🛑 NEW: Store the number of channels (1 for Canny, 4 for Raw RGBA)
     private var channels: Int = 1 
     
     // Buffers for vertex and texture coordinates
@@ -103,7 +102,6 @@ class EdgeRenderer : GLSurfaceView.Renderer {
                 GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
                 GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
                 
-                // 🛑 CRITICAL CHANGE: Use glFormat for both internalFormat and format
                 GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, glFormat, 
                                      width, height, 0, glFormat, 
                                      GLES20.GL_UNSIGNED_BYTE, buffer)
@@ -134,7 +132,7 @@ class EdgeRenderer : GLSurfaceView.Renderer {
      * @param frameHeight Height of the image.
      * @param channels 1 for grayscale/Canny, 4 for RGBA.
      */
-    // 🛑 UPDATED SIGNATURE
+  
     fun updateFrame(data: ByteArray, frameWidth: Int, frameHeight: Int, channels: Int) {
         synchronized(textureUpdateLock) {
             // Reallocate buffer only if size changes
@@ -147,7 +145,7 @@ class EdgeRenderer : GLSurfaceView.Renderer {
             
             this.width = frameWidth
             this.height = frameHeight
-            this.channels = channels // 🛑 Store channel count for onDrawFrame
+            this.channels = channels 
         }
     }
 }

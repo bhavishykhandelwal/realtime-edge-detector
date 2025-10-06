@@ -1,5 +1,3 @@
-// settings.gradle.kts
-
 pluginManagement {
     repositories {
         google()
@@ -16,4 +14,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "RealTimeEdgeDetector"
-include(":app") // CRITICAL: Tells Gradle to build the 'app' module
+include(":app") 

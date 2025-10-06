@@ -22,14 +22,12 @@ class FrameAnalyzer(
     private val outputMat = Mat() // Canny output (single channel)
     private val yuvMat = Mat()
     private val rgbaMat = Mat() // Raw camera frame (four channels)
-    
-    // 🛑 NEW: Public property to track and toggle state
+   
     @Volatile var isEdgeDetectionEnabled: Boolean = true
 
     // FPS variables
     private var lastTime = System.currentTimeMillis()
 
-    // 🛑 NEW: Function to toggle the state
     fun toggleProcessing() {
         isEdgeDetectionEnabled = !isEdgeDetectionEnabled
     }

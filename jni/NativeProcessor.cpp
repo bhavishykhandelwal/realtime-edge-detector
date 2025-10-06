@@ -26,8 +26,8 @@ Java_com_rnd_edgedetector_NativeProcessor_processFrame(
     // Mat objects for intermediate steps
     Mat grayMat, blurMat;
 
-    // 2. Convert to Grayscale (If input is color, e.g., RGBA)
-    // CRITICAL: The input Mat from the camera is often RGBA or YUV, Canny needs single-channel.
+    // 2. Convert to Grayscale (like RGBA)
+    //  The input Mat from the camera is often RGBA or YUV, Canny needs single-channel.
     cvtColor(inputMat, grayMat, COLOR_RGBA2GRAY); 
     
     // 3. Noise Reduction (Gaussian Blur) - Improves Canny accuracy

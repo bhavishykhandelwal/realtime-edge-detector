@@ -8,7 +8,7 @@ import android.content.pm.PackageManager
 import android.util.Log
 import android.util.Size
 import android.widget.TextView
-import android.widget.Button // 🛑 NEW
+import android.widget.Button
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
@@ -23,8 +23,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var glSurfaceView: GLSurfaceView
     private lateinit var renderer: EdgeRenderer
     private lateinit var fpsTextView: TextView
-    private lateinit var toggleButton: Button // 🛑 NEW
-    private lateinit var frameAnalyzer: FrameAnalyzer // 🛑 NEW: Hold reference
+    private lateinit var toggleButton: Button 
+    private lateinit var frameAnalyzer: FrameAnalyzer 
     private val cameraExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,7 +38,7 @@ class MainActivity : AppCompatActivity() {
         // 1. Setup UI components
         glSurfaceView = findViewById(R.id.gl_surface_view)
         fpsTextView = findViewById(R.id.fps_counter)
-        toggleButton = findViewById(R.id.toggle_button) // 🛑 Initialize new button
+        toggleButton = findViewById(R.id.toggle_button) 
         
         // 2. Setup GLSurfaceView and Renderer
         renderer = EdgeRenderer()
@@ -82,7 +82,7 @@ class MainActivity : AppCompatActivity() {
             frameAnalyzer = FrameAnalyzer(renderer, glSurfaceView, fpsTextView)
             imageAnalysis.setAnalyzer(cameraExecutor, frameAnalyzer)
             
-            // 🛑 NEW: Add the toggle button logic
+         
             toggleButton.setOnClickListener {
                 frameAnalyzer.toggleProcessing()
                 val buttonText = if (frameAnalyzer.isEdgeDetectionEnabled) "Processing: ON" else "Processing: OFF"

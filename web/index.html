@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge Detector Web Viewer</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #viewer-container { border: 1px solid #ccc; padding: 10px; }
+        #frame-image { max-width: 100%; height: auto; }
+        #stats-overlay { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Real-Time Edge Detector Output</h1>
+    <div id="viewer-container">
+        <img id="frame-image" src="" alt="Processed Frame Output">
+    </div>
+    
+    <div id="stats-overlay">
+        <p>Resolution: <span id="res-stat">N/A</span></p>
+        <p>FPS: <span id="fps-stat">N/A</span></p>
+    </div>
+
+    <script src="./dist/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "rootDir": "./",             /* Specify the root directory of source files. */
+    "outDir": "./dist",          /* Specify the output directory for built files. */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

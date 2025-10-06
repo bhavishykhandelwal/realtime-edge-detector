@@ -3,10 +3,14 @@ package com.rnd.edgedetector
 class NativeProcessor {
     companion object {
         init {
-            // Load the C++ shared library
+            // Loads the shared library created by CMakeLists.txt
             System.loadLibrary("native-processor")
         }
     }
-    // Declare the native method (JNI signature uses 'long' for Mat addresses)
+
+    /**
+     * Declares the native C++ method. 
+     * The 'long' type is used to pass the memory address of an OpenCV Mat.
+     */
     external fun processFrame(matAddrIn: Long, matAddrOut: Long)
 }

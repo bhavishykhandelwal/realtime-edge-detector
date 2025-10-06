@@ -58,4 +58,4 @@ The pipeline is designed for minimal latency:
 
 ## 🖼️ Screenshots
 
-(Insert screenshots or a GIF here showing the edge-detected output and the web viewer output.)
+![Web Viewer Simulated Output](docs/image.png)

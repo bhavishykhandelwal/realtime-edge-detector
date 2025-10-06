@@ -1,110 +1,114 @@
-// val glSurfaceView: GLSurfaceView = findViewById(R.id.gl_surface_view)
-// val renderer = EdgeRenderer()
-// glSurfaceView.setEGLContextClientVersion(2)
-// glSurfaceView.setRenderer(renderer)
-// // IMPORTANT: Only render when data is ready
-// glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+// MainActivity.kt
 
+package com.rnd.edgedetector
 
-
-// // In MainActivity, inside your CameraX setup function:
-
-// val imageAnalysis = ImageAnalysis.Builder()
-//     // Define target resolution
-//     .setTargetResolution(Size(640, 480)) 
-//     // Execute on a background thread to maintain performance [cite: 32]
-//     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_LATEST)
-//     .build()
-
-// imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor(), { imageProxy ->
-//     // 1. Convert ImageProxy to OpenCV Mat (Requires OpenCV Java module)
-//     // The details of this conversion (YUV -> Mat) are complex and depend on your OpenCV Java setup.
-//     // Let's assume you get inputMat (YUV or RGBA) and outputMat (for result).
-    
-//     // imageProxy.use { 
-//     //    // ... conversion logic to inputMat 
-//     // } 
-
-//     // 2. JNI Call (The C++ Processing)
-//     val inputMat: Mat = // ... converted Mat from camera frame
-//     val outputMat = Mat() // Create a Mat for the result
-
-//     // Calculate time for FPS counter (Optional/Bonus) [cite: 57]
-//     val startTime = System.currentTimeMillis() 
-
-//     NativeProcessor().processFrame(inputMat.nativeObj, outputMat.nativeObj)
-
-//     // 3. Update Renderer
-//     // Convert the processed Mat (outputMat) back to a byte array for OpenGL
-//     val processedBytes = ByteArray(outputMat.total().toInt() * outputMat.channels())
-//     outputMat.get(0, 0, processedBytes)
-    
-//     renderer.updateFrame(processedBytes, outputMat.cols(), outputMat.rows())
-//     glSurfaceView.requestRender() // Tell OpenGL to draw the new frame
-
-//     // Calculate and update FPS counter
-//     val timeTaken = System.currentTimeMillis() - startTime
-//     // updateTextView(findViewById(R.id.fps_counter), 1000f / timeTaken)
-
-//     imageProxy.close() // VERY IMPORTANT: Releases the buffer for the next frame
-// })
-// // Bind the use case to the lifecycle
-// // cameraProvider.bindToLifecycle(this, cameraSelector, imageAnalysis, preview)
-
-
-
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.opengl.GLSurfaceView
+import android.Manifest
+import android.content.pm.PackageManager
+import android.util.Log
+import android.util.Size
+import android.widget.TextView
+import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.rnd.edgedetector.gl.EdgeRenderer
+import org.opencv.android.OpenCVLoader // Required for OpenCV Java initialization
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
-    // 1. Declare components as lateinit properties
+    private val CAMERA_REQUEST_CODE = 100
     private lateinit var glSurfaceView: GLSurfaceView
     private lateinit var renderer: EdgeRenderer
+    private lateinit var fpsTextView: TextView
     private val cameraExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // **A. UI and Renderer Setup (Your Code Here)**
+        // 🛑 IMPORTANT: Initialize OpenCV Java library (must be called before any OpenCV Java calls)
+        if (!OpenCVLoader.initLocal()) {
+            Log.e("OpenCV", "OpenCV initialization failed.")
+        }
+
+        // 1. Setup UI components
         glSurfaceView = findViewById(R.id.gl_surface_view)
-        renderer = EdgeRenderer() // Assumes you've imported com.rnd.edgedetector.gl.EdgeRenderer
+        fpsTextView = findViewById(R.id.fps_counter)
+        
+        // 2. Setup GLSurfaceView and Renderer
+        renderer = EdgeRenderer()
         glSurfaceView.setEGLContextClientVersion(2)
         glSurfaceView.setRenderer(renderer)
+        // Only render when the FrameAnalyzer is ready with new data
         glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
 
-        // **B. Start Camera (After permissions check)**
+        // 3. Check Permissions
         if (allPermissionsGranted()) {
             startCamera()
         } else {
-            // ... request permissions ...
+            ActivityCompat.requestPermissions(
+                this, 
+                arrayOf(Manifest.permission.CAMERA), 
+                CAMERA_REQUEST_CODE
+            )
+        }
+    }
+
+    private fun allPermissionsGranted() = ContextCompat.checkSelfPermission(
+        baseContext, 
+        Manifest.permission.CAMERA
+    ) == PackageManager.PERMISSION_GRANTED
+    
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == CAMERA_REQUEST_CODE) {
+            if (allPermissionsGranted()) {
+                startCamera()
+            } else {
+                Log.e("Permissions", "Camera permission denied.")
+                // Handle permission denial
+            }
         }
     }
 
     private fun startCamera() {
-        // This function sets up the CameraProvider and binds the ImageAnalysis use case
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-        
+
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
             
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            // ImageAnalysis Use Case: The continuous frame generator
             val imageAnalysis = ImageAnalysis.Builder()
-                .setTargetResolution(Size(640, 480))
+                .setTargetResolution(Size(640, 480)) 
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_LATEST)
                 .build()
-
-            // **C. JNI Pipeline Implementation (Delegated to Analyzer)**
-            imageAnalysis.setAnalyzer(cameraExecutor, YourFrameAnalyzer(renderer, glSurfaceView))
             
-            // Bind the ImageAnalysis to the lifecycle
+            // --- JNI Pipeline Implementation (Analyzer) ---
+            imageAnalysis.setAnalyzer(
+                cameraExecutor, 
+                FrameAnalyzer(renderer, glSurfaceView, fpsTextView)
+            )
+            // ---------------------------------------------
+            
             try {
+                // Bind the ImageAnalysis use case to the lifecycle
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(this, cameraSelector, imageAnalysis)
+
             } catch(exc: Exception) {
-                // Handle binding errors
+                Log.e("CameraX", "Use case binding failed", exc)
             }
 
         }, ContextCompat.getMainExecutor(this))
     }
-    // ... allPermissionsGranted() and onRequestPermissionsResult() functions here ...
 }

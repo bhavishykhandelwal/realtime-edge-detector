@@ -13,6 +13,7 @@ import javax.microedition.khronos.opengles.GL10
 
 class EdgeRenderer : GLSurfaceView.Renderer {
 
+    // Vertex coordinates for a screen-filling quad
     private val vertexCoords = floatArrayOf(
         -1.0f, -1.0f, 0.0f, // bottom left
          1.0f, -1.0f, 0.0f, // bottom right
@@ -20,6 +21,7 @@ class EdgeRenderer : GLSurfaceView.Renderer {
          1.0f,  1.0f, 0.0f  // top right
     )
 
+    // Texture coordinates (flipping Y is often necessary)
     private val textureCoords = floatArrayOf(
         0.0f, 1.0f, // bottom left
         1.0f, 1.0f, // bottom right
@@ -31,6 +33,9 @@ class EdgeRenderer : GLSurfaceView.Renderer {
     private var textureId: IntArray = IntArray(1)
     private var width: Int = 0
     private var height: Int = 0
+    
+    // 🛑 NEW: Store the number of channels (1 for Canny, 4 for Raw RGBA)
+    private var channels: Int = 1 
     
     // Buffers for vertex and texture coordinates
     private lateinit var vertexBuffer: FloatBuffer
@@ -81,13 +86,14 @@ class EdgeRenderer : GLSurfaceView.Renderer {
     override fun onDrawFrame(gl: GL10) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
         
-        // Use the shader program
         GLES20.glUseProgram(programHandle)
         
         // 1. Update Texture if new data is available
         synchronized(textureUpdateLock) {
             nextFrameBuffer?.let { buffer ->
-                // Bind the texture
+                // Determine format based on channel count
+                val glFormat = if (channels == 4) GLES20.GL_RGBA else GLES20.GL_LUMINANCE
+                
                 GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId[0])
                 
@@ -97,10 +103,9 @@ class EdgeRenderer : GLSurfaceView.Renderer {
                 GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
                 GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
                 
-                // Upload new image data from the OpenCV Mat
-                // CRITICAL: Use GL_LUMINANCE for single-channel grayscale (Canny output)
-                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_LUMINANCE, 
-                                     width, height, 0, GLES20.GL_LUMINANCE, 
+                // 🛑 CRITICAL CHANGE: Use glFormat for both internalFormat and format
+                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, glFormat, 
+                                     width, height, 0, glFormat, 
                                      GLES20.GL_UNSIGNED_BYTE, buffer)
                 nextFrameBuffer = null // Mark buffer as consumed
             }
@@ -110,33 +115,39 @@ class EdgeRenderer : GLSurfaceView.Renderer {
         GLES20.glUniform1i(textureUniformHandle, 0) // Texture unit 0
 
         // 3. Draw the quad
-        // Pass position data
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
         GLES20.glEnableVertexAttribArray(positionHandle)
 
-        // Pass texture coordinate data
         GLES20.glVertexAttribPointer(textureCoordHandle, 2, GLES20.GL_FLOAT, false, 0, textureBuffer)
         GLES20.glEnableVertexAttribArray(textureCoordHandle)
         
-        // Draw the triangles (quad)
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
 
-        // Disable arrays
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisableVertexAttribArray(textureCoordHandle)
     }
 
     /**
-     * Called by FrameAnalyzer with the processed Mat data.
+     * Called by FrameAnalyzer with the processed Mat data, including channel count.
+     * @param data Byte array of the image frame.
+     * @param frameWidth Width of the image.
+     * @param frameHeight Height of the image.
+     * @param channels 1 for grayscale/Canny, 4 for RGBA.
      */
-    fun updateFrame(data: ByteArray, frameWidth: Int, frameHeight: Int) {
+    // 🛑 UPDATED SIGNATURE
+    fun updateFrame(data: ByteArray, frameWidth: Int, frameHeight: Int, channels: Int) {
         synchronized(textureUpdateLock) {
-            // Allocate a new buffer or reuse, then copy byte data
-            // .put() copies the byte array data into the ByteBuffer
-            nextFrameBuffer = ByteBuffer.allocateDirect(data.size).order(ByteOrder.nativeOrder()).put(data)
-            nextFrameBuffer!!.position(0) // Reset position for reading
+            // Reallocate buffer only if size changes
+            if (nextFrameBuffer == null || nextFrameBuffer!!.capacity() != data.size) {
+                 nextFrameBuffer = ByteBuffer.allocateDirect(data.size).order(ByteOrder.nativeOrder())
+            }
+            nextFrameBuffer!!.clear()
+            nextFrameBuffer!!.put(data)
+            nextFrameBuffer!!.position(0)
+            
             this.width = frameWidth
             this.height = frameHeight
+            this.channels = channels // 🛑 Store channel count for onDrawFrame
         }
     }
 }

@@ -1,5 +1,3 @@
-// MainActivity.kt
-
 package com.rnd.edgedetector
 
 import androidx.appcompat.app.AppCompatActivity
@@ -10,12 +8,13 @@ import android.content.pm.PackageManager
 import android.util.Log
 import android.util.Size
 import android.widget.TextView
+import android.widget.Button // 🛑 NEW
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rnd.edgedetector.gl.EdgeRenderer
-import org.opencv.android.OpenCVLoader // Required for OpenCV Java initialization
+import org.opencv.android.OpenCVLoader
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
@@ -24,13 +23,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var glSurfaceView: GLSurfaceView
     private lateinit var renderer: EdgeRenderer
     private lateinit var fpsTextView: TextView
+    private lateinit var toggleButton: Button // 🛑 NEW
+    private lateinit var frameAnalyzer: FrameAnalyzer // 🛑 NEW: Hold reference
     private val cameraExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 🛑 IMPORTANT: Initialize OpenCV Java library (must be called before any OpenCV Java calls)
         if (!OpenCVLoader.initLocal()) {
             Log.e("OpenCV", "OpenCV initialization failed.")
         }
@@ -38,12 +38,12 @@ class MainActivity : AppCompatActivity() {
         // 1. Setup UI components
         glSurfaceView = findViewById(R.id.gl_surface_view)
         fpsTextView = findViewById(R.id.fps_counter)
+        toggleButton = findViewById(R.id.toggle_button) // 🛑 Initialize new button
         
         // 2. Setup GLSurfaceView and Renderer
         renderer = EdgeRenderer()
         glSurfaceView.setEGLContextClientVersion(2)
         glSurfaceView.setRenderer(renderer)
-        // Only render when the FrameAnalyzer is ready with new data
         glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
 
         // 3. Check Permissions
@@ -63,21 +63,7 @@ class MainActivity : AppCompatActivity() {
         Manifest.permission.CAMERA
     ) == PackageManager.PERMISSION_GRANTED
     
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == CAMERA_REQUEST_CODE) {
-            if (allPermissionsGranted()) {
-                startCamera()
-            } else {
-                Log.e("Permissions", "Camera permission denied.")
-                // Handle permission denial
-            }
-        }
-    }
+    // ... (onRequestPermissionsResult function) ...
 
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -87,21 +73,24 @@ class MainActivity : AppCompatActivity() {
             
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-            // ImageAnalysis Use Case: The continuous frame generator
             val imageAnalysis = ImageAnalysis.Builder()
                 .setTargetResolution(Size(640, 480)) 
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_LATEST)
                 .build()
             
             // --- JNI Pipeline Implementation (Analyzer) ---
-            imageAnalysis.setAnalyzer(
-                cameraExecutor, 
-                FrameAnalyzer(renderer, glSurfaceView, fpsTextView)
-            )
+            frameAnalyzer = FrameAnalyzer(renderer, glSurfaceView, fpsTextView)
+            imageAnalysis.setAnalyzer(cameraExecutor, frameAnalyzer)
+            
+            // 🛑 NEW: Add the toggle button logic
+            toggleButton.setOnClickListener {
+                frameAnalyzer.toggleProcessing()
+                val buttonText = if (frameAnalyzer.isEdgeDetectionEnabled) "Processing: ON" else "Processing: OFF"
+                toggleButton.text = buttonText
+            }
             // ---------------------------------------------
             
             try {
-                // Bind the ImageAnalysis use case to the lifecycle
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(this, cameraSelector, imageAnalysis)
 

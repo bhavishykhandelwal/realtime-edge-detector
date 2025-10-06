@@ -1,5 +1,3 @@
-// FrameAnalyzer.kt
-
 package com.rnd.edgedetector
 
 import android.annotation.SuppressLint
@@ -17,63 +15,78 @@ import android.widget.TextView
 class FrameAnalyzer(
     private val renderer: EdgeRenderer,
     private val glSurfaceView: GLSurfaceView,
-    private val fpsTextView: TextView // For bonus FPS counter
+    private val fpsTextView: TextView
 ) : ImageAnalysis.Analyzer {
 
     private val nativeProcessor = NativeProcessor()
-    private val outputMat = Mat()
+    private val outputMat = Mat() // Canny output (single channel)
     private val yuvMat = Mat()
-    private val rgbaMat = Mat() // For intermediate RGBA conversion if needed
+    private val rgbaMat = Mat() // Raw camera frame (four channels)
     
+    // 🛑 NEW: Public property to track and toggle state
+    @Volatile var isEdgeDetectionEnabled: Boolean = true
+
     // FPS variables
     private var lastTime = System.currentTimeMillis()
+
+    // 🛑 NEW: Function to toggle the state
+    fun toggleProcessing() {
+        isEdgeDetectionEnabled = !isEdgeDetectionEnabled
+    }
 
     @SuppressLint("UnsafeOptInUsageError")
     override fun analyze(imageProxy: ImageProxy) {
         
-        // --- STEP 1: YUV-to-Mat Conversion (CRITICAL Performance Step) ---
+        // --- STEP 1: YUV-to-Mat Conversion ---
         val inputMat: Mat = yuv420ToMat(imageProxy)
         
-        // 🛑 IMPORTANT: If the conversion failed or we don't have a valid Mat, skip.
         if (inputMat.empty()) {
             imageProxy.close()
             return
         }
 
-        // --- STEP 2: JNI Call (C++ Processing) ---
-        val startTime = System.currentTimeMillis() 
-
-        // Calls the C++ function in jni/NativeProcessor.cpp
-        nativeProcessor.processFrame(inputMat.nativeObj, outputMat.nativeObj)
+        // --- STEP 2: Conditional Processing (The Toggle) ---
+        val processedMat: Mat
+        val processedMatChannels: Int
+        
+        if (isEdgeDetectionEnabled) {
+            // Edge Detection (Canny)
+            nativeProcessor.processFrame(inputMat.nativeObj, outputMat.nativeObj)
+            processedMat = outputMat 
+            processedMatChannels = 1 // Canny output is single-channel grayscale
+        } else {
+            // Raw Camera Feed
+            processedMat = inputMat // This is the RGBA Mat from yuv420ToMat
+            processedMatChannels = 4 // RGBA is four channels
+        }
 
         // --- STEP 3: Rendering Update (OpenGL) ---
         
-        // The outputMat contains a single-channel (grayscale) Canny image.
-        // We convert it to a byte array to upload as an OpenGL texture.
-        val processedBytes = ByteArray(outputMat.total().toInt() * outputMat.channels())
-        outputMat.get(0, 0, processedBytes)
+        val bufferSize = processedMat.total().toInt() * processedMatChannels
+        val processedBytes = ByteArray(bufferSize)
+        processedMat.get(0, 0, processedBytes)
         
-        // Pass the data to the OpenGL renderer
-        renderer.updateFrame(processedBytes, outputMat.cols(), outputMat.rows())
-        glSurfaceView.requestRender() // Triggers the EdgeRenderer.onDrawFrame()
+        // Pass the data to the OpenGL renderer (Must use an updated renderer signature!)
+        renderer.updateFrame(processedBytes, processedMat.cols(), processedMat.rows(), processedMatChannels)
+        glSurfaceView.requestRender() 
 
-        // --- Cleanup and FPS (Bonus) ---
+        // --- Cleanup and FPS ---
         val currentTime = System.currentTimeMillis()
-        val timeTaken = currentTime - lastTime
-        val fps = 1000f / timeTaken
+        val fps = 1000f / (currentTime - lastTime)
         
-        // Update FPS counter on the UI thread (if you included the bonus TextView)
         glSurfaceView.post {
             fpsTextView.text = "FPS: ${fps.roundToInt()}"
         }
         lastTime = currentTime
 
-        // Release the camera buffer (CRITICAL for performance)
+        // Release the camera buffer
         imageProxy.close() 
     }
     
     // YUV_420_888 to Mat Conversion Utility
     private fun yuv420ToMat(image: ImageProxy): Mat {
+        // ... (YUV plane extraction code) ...
+
         val planes = image.planes
         val yBuffer: ByteBuffer = planes[0].buffer
         val uBuffer: ByteBuffer = planes[1].buffer
@@ -88,14 +101,12 @@ class FrameAnalyzer(
         vBuffer.get(data, ySize, vSize)
         uBuffer.get(data, ySize + vSize, uSize)
 
-        // Create a Mat from the YUV data
         yuvMat.create(image.height + image.height / 2, image.width, CvType.CV_8UC1)
         yuvMat.put(0, 0, data)
 
-        // Convert YUV to RGBA (or use YUV to Gray for pure speed)
+        // Convert YUV to RGBA (This is the Mat used for the raw feed and Canny input)
         Imgproc.cvtColor(yuvMat, rgbaMat, Imgproc.COLOR_YUV420p2RGBA, 4)
         
-        // NOTE: In the Canny pipeline, C++ will convert this RGBA Mat back to GRAY for processing.
         return rgbaMat
     }
 }

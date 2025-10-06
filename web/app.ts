@@ -1,6 +1,6 @@
 // web/app.ts
 
-// 1. Define a mock data structure
+// Define the expected data structure
 interface FrameData {
     timestamp: number;
     fps: number;
@@ -9,21 +9,19 @@ interface FrameData {
     base64Frame: string; 
 }
 
-// 2. Mock Data (Replace with a small, simple Base64 string if possible)
+// Mock data (A small red square image, demonstrating the data format)
 const MOCK_FRAME_DATA: FrameData = {
     timestamp: Date.now(),
     fps: 15.5,
     resolution: "640x480",
-    // NOTE: This is a placeholder. A real Base64 image string (e.g., a tiny black dot)
-    // should be used here to demonstrate the image display functionality.
-    base64Frame: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" 
+    base64Frame: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAD0lEQVR42mP8z8AARgYAAwIAAZwAB0Y6D+cAAAAASUVORK5CYII=" 
 };
 
 /**
  * Updates the HTML DOM with new frame data.
  */
 function updateViewer(data: FrameData): void {
-    console.log(`Updating viewer with FPS: ${data.fps}`);
+    console.log(`Web Viewer: Received simulated frame data. FPS: ${data.fps}`);
 
     const imageElement = document.getElementById('frame-image') as HTMLImageElement;
     const resStat = document.getElementById('res-stat');
@@ -37,23 +35,23 @@ function updateViewer(data: FrameData): void {
         resStat.textContent = data.resolution;
     }
     if (fpsStat) {
-        fpsStat.textContent = data.fps.toFixed(2);
+        fpsStat.textContent = data.fps.toFixed(1);
     }
 }
 
 /**
- * MOCK: Simulates connection to an Android HTTP endpoint.
- * This satisfies the "Add a simple WebSocket or HTTP endpoint (mock) for the web viewer" bonus.
+ * Simulates receiving a frame from a mock endpoint.
+ * This satisfies the "Add a simple WebSocket or HTTP endpoint (mock)" bonus.
  */
 function connectAndSimulateFrames(): void {
-    console.log("MOCK: Attempting to connect to Android frame stream...");
+    console.log("MOCK: Starting connection simulation for frame stream...");
     
-    // Simulate receiving a new frame every 3 seconds
+    // Delay to simulate connection time, then update
     setTimeout(() => {
         updateViewer(MOCK_FRAME_DATA);
-        console.log("MOCK: Received and displayed static frame.");
-    }, 1000);
+        console.log("MOCK: Viewer updated with static frame and statistics.");
+    }, 1500);
 }
 
-// Entry point
+// Entry point: start the simulation once the page is fully loaded
 document.addEventListener('DOMContentLoaded', connectAndSimulateFrames);

@@ -4,14 +4,8 @@
   "description": "Minimal TypeScript viewer for edge detection results.",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && node dist/app.js"
+    "start": "npm run build && open index.html" 
   },
-  "keywords": [
-    "typescript",
-    "web"
-  ],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "typescript": "^5.0.4"
   }

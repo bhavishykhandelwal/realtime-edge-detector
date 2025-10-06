@@ -7,14 +7,16 @@
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
         #viewer-container { border: 1px solid #ccc; padding: 10px; }
-        #frame-image { max-width: 100%; height: auto; }
-        #stats-overlay { margin-top: 10px; }
+        #frame-image { max-width: 640px; height: auto; }
+        #stats-overlay { margin-top: 20px; text-align: left; }
     </style>
 </head>
 <body>
     <h1>Real-Time Edge Detector Output</h1>
     <div id="viewer-container">
-        <img id="frame-image" src="" alt="Processed Frame Output">
+        <img id="frame-image" 
+             src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" 
+             alt="Processed Frame Output">
     </div>
     
     <div id="stats-overlay">
